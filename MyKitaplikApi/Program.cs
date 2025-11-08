@@ -1,5 +1,12 @@
-// Program.cs
+using MyKitaplikApi.Data;
+using Microsoft.EntityFrameworkCore;
+
+
 var builder = WebApplication.CreateBuilder(args);
+// burada web uygulamasını başlat demiş olduk.
+
+builder.Services.AddDbContext<KitaplikDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("SQLiteConnection")));
+
 
 // Add services to the container (DI Konteynerine servisleri ekleme)
 builder.Services.AddControllers(); // Controller'ları kullanacağımızı belirtir.

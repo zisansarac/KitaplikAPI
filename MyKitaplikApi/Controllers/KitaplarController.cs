@@ -1,90 +1,100 @@
 using Microsoft.AspNetCore.Mvc;
-using MyKitaplikApi.Models; // Yeni oluşturduğumuz modeli kullanmak için
+using MyKitaplikApi.Data; // DbContext'i kullanmak için
+using MyKitaplikApi.Models; // Modeli kullanmak için
+using Microsoft.EntityFrameworkCore; // ToListAsync() gibi EF metotları için
 
-[Route("api/[controller]")] 
+[Route("api/[controller]")]
 [ApiController]
 public class KitaplarController : ControllerBase
 {
-    // Geçici olarak Veritabanı yerine statik bir liste kullanıyoruz.
-    private static List<Kitap> Kitaplar = new List<Kitap>
+    // 1. DI: DbContext'i constructor aracılığıyla istiyoruz.
+    private readonly KitaplikDbContext _context;
+
+    public KitaplarController(KitaplikDbContext context) 
     {
-        new Kitap { Id = 1, Baslik = "Sefiller", Yazar = "Victor Hugo", SayfaSayisi = 1488 },
-        new Kitap { Id = 2, Baslik = "Dönüşüm", Yazar = "Franz Kafka", SayfaSayisi = 70 }
-    };
+        // Bu _context, Program.cs'te kaydettiğimiz veritabanı bağlantısını temsil eder.
+        _context = context; 
+    }
 
     // ---------------------- 1. GET (Okuma) ----------------------
 
     // Rota: GET /api/Kitaplar
     [HttpGet] 
-    public IActionResult GetirTumKitaplari()
+    public async Task<IActionResult> GetirTumKitaplari()
     {
-        return Ok(Kitaplar); // HTTP 200 OK yanıtı ile tüm listeyi döndür.
+        // STATİK LİSTE YERİNE: Veritabanından tüm kitapları asenkron çeker.
+        var kitaplar = await _context.Kitaplar.ToListAsync(); 
+        return Ok(kitaplar);
     }
 
     // Rota: GET /api/Kitaplar/2
     [HttpGet("{id}")]
-    public IActionResult GetirKitapById(int id)
+    public async Task<IActionResult> GetirKitapById(int id)
     {
-        var kitap = Kitaplar.FirstOrDefault(k => k.Id == id);
+        // Statik liste yerine: Veritabanından ID ile bulur.
+        var kitap = await _context.Kitaplar.FindAsync(id); 
         
         if (kitap == null)
         {
-            return NotFound($"ID'si {id} olan kitap bulunamadı."); // HTTP 404 Not Found yanıtı.
+            return NotFound(); 
         }
         
-        return Ok(kitap); // HTTP 200 OK yanıtı ile tek kitabı döndür.
+        return Ok(kitap);
     }
 
     // ---------------------- 2. POST (Oluşturma) ----------------------
 
     // Rota: POST /api/Kitaplar
     [HttpPost]
-    public IActionResult EkleYeniKitap([FromBody] Kitap yeniKitap)
+    public async Task<IActionResult> EkleYeniKitap([FromBody] Kitap yeniKitap)
     {
-        // ID'yi manuel olarak atama (gerçek projede DB yapar)
-        yeniKitap.Id = Kitaplar.Max(k => k.Id) + 1;
-        Kitaplar.Add(yeniKitap);
+        // Statik listeye ekleme yerine: DbContext'e ekler.
+        _context.Kitaplar.Add(yeniKitap);
+        
+        // KRİTİK ADIM: Değişiklikleri veritabanına kalıcı olarak kaydet!
+        await _context.SaveChangesAsync(); 
 
-        // CreatedAtAction: HTTP 201 Created yanıtı döndürür. Yeni kaynağın URL'ini de sağlar.
+        // Yeni ID'yi otomatik olarak yeniKitap.Id'ye atar.
         return CreatedAtAction(nameof(GetirKitapById), new { id = yeniKitap.Id }, yeniKitap); 
     }
     
     // ---------------------- 3. PUT (Güncelleme) ----------------------
 
-    // Rota: PUT /api/Kitaplar/2
     [HttpPut("{id}")]
-    public IActionResult GuncelleKitap(int id, [FromBody] Kitap guncelKitap)
+    public async Task<IActionResult> GuncelleKitap(int id, [FromBody] Kitap guncelKitap)
     {
-        var kitap = Kitaplar.FirstOrDefault(k => k.Id == id);
+        if (id != guncelKitap.Id) return BadRequest();
 
-        if (kitap == null)
+        // EF Core'a nesnenin durumunun değiştirildiğini bildir.
+        _context.Entry(guncelKitap).State = EntityState.Modified;
+
+        try
         {
-            return NotFound(); // HTTP 404
+            await _context.SaveChangesAsync();
         }
-
-        // Kitabın özelliklerini güncelle
-        kitap.Baslik = guncelKitap.Baslik;
-        kitap.Yazar = guncelKitap.Yazar;
-        kitap.SayfaSayisi = guncelKitap.SayfaSayisi;
-        
-        return NoContent(); // HTTP 204 No Content (Başarılı güncelleme, ama yanıt gövdesi boş).
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await _context.Kitaplar.AnyAsync(e => e.Id == id))
+            {
+                return NotFound();
+            }
+            throw; 
+        }
+        return NoContent(); 
     }
 
     // ---------------------- 4. DELETE (Silme) ----------------------
 
-    // Rota: DELETE /api/Kitaplar/1
     [HttpDelete("{id}")]
-    public IActionResult SilKitap(int id)
+    public async Task<IActionResult> SilKitap(int id)
     {
-        var kitap = Kitaplar.FirstOrDefault(k => k.Id == id);
+        var kitap = await _context.Kitaplar.FindAsync(id);
         
-        if (kitap == null)
-        {
-            return NotFound(); // HTTP 404
-        }
+        if (kitap == null) return NotFound();
         
-        Kitaplar.Remove(kitap);
+        _context.Kitaplar.Remove(kitap);
+        await _context.SaveChangesAsync(); 
         
-        return NoContent(); // HTTP 204 No Content
+        return NoContent();
     }
 }
