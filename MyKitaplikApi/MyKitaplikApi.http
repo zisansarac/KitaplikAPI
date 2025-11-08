@@ -1,0 +1,6 @@
+@MyKitaplikApi_HostAddress = http://localhost:5193
+
+GET {{MyKitaplikApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
