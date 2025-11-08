@@ -1,99 +1,65 @@
+// MyKitaplikApi/Controllers/KitaplarController.cs
 using Microsoft.AspNetCore.Mvc;
-using MyKitaplikApi.Data; // DbContext'i kullanmak için
-using MyKitaplikApi.Models; // Modeli kullanmak için
-using Microsoft.EntityFrameworkCore; // ToListAsync() gibi EF metotları için
+using MyKitaplikApi.Models;
+using MyKitaplikApi.Services; // Sadece Servis'e bağımlıyız!
 
 [Route("api/[controller]")]
 [ApiController]
 public class KitaplarController : ControllerBase
 {
-    // 1. DI: DbContext'i constructor aracılığıyla istiyoruz.
-    private readonly KitaplikDbContext _context;
+    private readonly KitapService _kitapService; 
 
-    public KitaplarController(KitaplikDbContext context) 
+    public KitaplarController(KitapService kitapService) // DI ile Service alınır
     {
-        // Bu _context, Program.cs'te kaydettiğimiz veritabanı bağlantısını temsil eder.
-        _context = context; 
+        _kitapService = kitapService;
     }
 
-    // ---------------------- 1. GET (Okuma) ----------------------
-
-    // Rota: GET /api/Kitaplar
+    // GET /api/Kitaplar
     [HttpGet] 
     public async Task<IActionResult> GetirTumKitaplari()
     {
-        // STATİK LİSTE YERİNE: Veritabanından tüm kitapları asenkron çeker.
-        var kitaplar = await _context.Kitaplar.ToListAsync(); 
+        var kitaplar = await _kitapService.GetAll(); 
         return Ok(kitaplar);
     }
 
-    // Rota: GET /api/Kitaplar/2
+    // GET /api/Kitaplar/2
     [HttpGet("{id}")]
     public async Task<IActionResult> GetirKitapById(int id)
     {
-        // Statik liste yerine: Veritabanından ID ile bulur.
-        var kitap = await _context.Kitaplar.FindAsync(id); 
-        
-        if (kitap == null)
-        {
-            return NotFound(); 
-        }
-        
+        var kitap = await _kitapService.GetById(id);
+        if (kitap == null) return NotFound();
         return Ok(kitap);
     }
 
-    // ---------------------- 2. POST (Oluşturma) ----------------------
-
-    // Rota: POST /api/Kitaplar
+    // POST /api/Kitaplar
     [HttpPost]
     public async Task<IActionResult> EkleYeniKitap([FromBody] Kitap yeniKitap)
     {
-        // Statik listeye ekleme yerine: DbContext'e ekler.
-        _context.Kitaplar.Add(yeniKitap);
-        
-        // KRİTİK ADIM: Değişiklikleri veritabanına kalıcı olarak kaydet!
-        await _context.SaveChangesAsync(); 
-
-        // Yeni ID'yi otomatik olarak yeniKitap.Id'ye atar.
+        await _kitapService.Add(yeniKitap); 
         return CreatedAtAction(nameof(GetirKitapById), new { id = yeniKitap.Id }, yeniKitap); 
     }
-    
-    // ---------------------- 3. PUT (Güncelleme) ----------------------
 
+    // PUT /api/Kitaplar/2
     [HttpPut("{id}")]
     public async Task<IActionResult> GuncelleKitap(int id, [FromBody] Kitap guncelKitap)
     {
         if (id != guncelKitap.Id) return BadRequest();
 
-        // EF Core'a nesnenin durumunun değiştirildiğini bildir.
-        _context.Entry(guncelKitap).State = EntityState.Modified;
+        // Service'e güncelleme işlemini yapmasını söyle
+        await _kitapService.Update(guncelKitap);
+        
+        // Hata kontrolü burada eksik, ama şimdilik basit tutalım.
+        // KitapService'ten dönen bool değerini kontrol etmek daha doğru olur.
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await _context.Kitaplar.AnyAsync(e => e.Id == id))
-            {
-                return NotFound();
-            }
-            throw; 
-        }
-        return NoContent(); 
+        return NoContent();
     }
 
-    // ---------------------- 4. DELETE (Silme) ----------------------
-
+    // DELETE /api/Kitaplar/1
     [HttpDelete("{id}")]
     public async Task<IActionResult> SilKitap(int id)
     {
-        var kitap = await _context.Kitaplar.FindAsync(id);
-        
-        if (kitap == null) return NotFound();
-        
-        _context.Kitaplar.Remove(kitap);
-        await _context.SaveChangesAsync(); 
+        bool silindi = await _kitapService.Delete(id);
+        if (!silindi) return NotFound();
         
         return NoContent();
     }

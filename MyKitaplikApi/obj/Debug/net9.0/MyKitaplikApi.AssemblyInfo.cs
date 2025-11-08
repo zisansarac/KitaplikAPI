@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MyKitaplikApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3405cb7ce32144e546065d440c748d930625d004")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2d3e4dc5f9be8568b271c69b3e1230126f922275")]
 [assembly: System.Reflection.AssemblyProductAttribute("MyKitaplikApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MyKitaplikApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,7 +1,5 @@
 namespace MyKitaplikApi.Models
 {
-
-    // 
     public class Kitap
     {
         public int Id { get; set; }
