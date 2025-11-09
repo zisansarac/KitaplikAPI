@@ -1,6 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using MyKitaplikApi.Models.Auth;
 
 [Microsoft.AspNetCore.Components.Route("api/[controller]")]
@@ -47,6 +51,60 @@ public class AuthController : ControllerBase
 
     }
 
+    [HttpPost("Login")]
+    public async Task<IActionResult> Login([FromBody] LoginModel model)
+    {
+        //1. Kullanıcıyı bul
+        var user = await _userManager.FindByNameAsync(model.Username);
+
+        //2. Kullanıcı varsa ve parola doğruysa
+        if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
+        {
+            // 3. Kullanıcı bilgilerini içeren "Claim" listesini oluştur (Bu, token'ın içeriğidir).
+            var authClaims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.UserName!),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // JWT ID
+                new Claim(ClaimTypes.NameIdentifier, user.Id)
+            };
+
+            //4. Toekn'ı oluştur
+            var token = GetToken(authClaims);
+
+            //5. Token'ı ve son kullanma tarihini Frontend'e gönder
+            return Ok(new
+            {
+                token = new JwtSecurityTokenHandler().WriteToken(token),
+                expiration = token.ValidTo, // Token'ın geçerlilik süresi
+                username = user.UserName
+            });
+        }
+        // Başarısız giriş
+        return Unauthorized(new { Status = "Hata", Message = "Kullanıcı adı veya parola hatalı!" });
+    }
+
+    // Yardımcı Metot: JWT Token Üretimi
+    private JwtSecurityToken GetToken(List<Claim> authClaims)
+    {
+        //JWT ayarlarını Program.cs den çek
+        var jwtSecret = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jwt:Key"]!;
+        var validIssuer = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jwt:Issuer"]!;
+        var validAudience = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jwt: Audience"]!;
+
+        // Gizli anahtarı byte dizisine çevir
+        var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+        // Token detaylarını tanımla
+        var token = new JwtSecurityToken(
+            issuer: validIssuer,
+            audience: validAudience,
+            expires: DateTime.Now.AddHours(24), // token 24 saat geçerli olsun
+            claims: authClaims,
+            signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+        );
+        return token;
+     
+    }
 
 
 }
