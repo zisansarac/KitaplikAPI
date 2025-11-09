@@ -6,6 +6,7 @@ namespace MyKitaplikApi.Models
         public string Baslik { get; set; }
         public string Yazar { get; set; }
         public int SayfaSayisi { get; set; }
+        public string? UserId { get; set; }
 
     }
 }

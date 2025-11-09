@@ -1,4 +1,6 @@
 // MyKitaplikApi/Controllers/KitaplarController.cs
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MyKitaplikApi.Models;
 using MyKitaplikApi.Services; // Sadece Servis'e bağımlıyız!
@@ -33,14 +35,24 @@ public class KitaplarController : ControllerBase
 
     // POST /api/Kitaplar
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> EkleYeniKitap([FromBody] Kitap yeniKitap)
     {
+        // Token içinden yetkili kullanıcının ID'sini çekme (Bu, IDENTITY veritabanındaki ID'dir).
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    
+        if (currentUserId == null) 
+           return Unauthorized(new { Message = "Token geçerli ancak kullanıcı ID'si bulunamadı." });
+
+        yeniKitap.UserId = currentUserId; // Kitaba sahibi atandı!
+    
         await _kitapService.Add(yeniKitap); 
         return CreatedAtAction(nameof(GetirKitapById), new { id = yeniKitap.Id }, yeniKitap); 
     }
 
     // PUT /api/Kitaplar/2
     [HttpPut("{id}")]
+    [Authorize]
     public async Task<IActionResult> GuncelleKitap(int id, [FromBody] Kitap guncelKitap)
     {
         if (id != guncelKitap.Id) return BadRequest();
@@ -55,12 +67,28 @@ public class KitaplarController : ControllerBase
     }
 
     // DELETE /api/Kitaplar/1
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> SilKitap(int id)
+[HttpDelete("{id}")]
+[Authorize] 
+public async Task<IActionResult> SilKitap(int id)
+{
+    var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    // 1. Kitabı veritabanından çek (sahibini kontrol etmek için)
+    var kitap = await _kitapService.GetById(id);
+    
+    if (kitap == null) 
+        return NotFound();
+
+    // 2. YETKİ KONTROLÜ: Kitabın UserId'si, istek yapanın ID'si ile eşleşiyor mu?
+    if (kitap.UserId != currentUserId)
     {
-        bool silindi = await _kitapService.Delete(id);
-        if (!silindi) return NotFound();
-        
-        return NoContent();
+        // Güvenlik Başarısız! Kullanıcı başkasının kitabını silmeye çalışıyor.
+        return Forbid(); // HTTP 403 Forbidden yanıtı döndürülür.
     }
+    
+    // 3. Kontrol başarılı: Silme işlemini yap.
+    await _kitapService.Delete(id); 
+    
+    return NoContent();
+}
 }

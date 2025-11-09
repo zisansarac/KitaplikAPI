@@ -86,10 +86,13 @@ public class AuthController : ControllerBase
     // Yardımcı Metot: JWT Token Üretimi
     private JwtSecurityToken GetToken(List<Claim> authClaims)
     {
+        // DI ile IConfiguration servisini alın
+        var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+    
         //JWT ayarlarını Program.cs den çek
-        var jwtSecret = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jwt:Key"]!;
-        var validIssuer = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jwt:Issuer"]!;
-        var validAudience = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Jwt: Audience"]!;
+        var jwtSecret = config["Jwt:Key"]!;
+        var validIssuer = config["Jwt:Issuer"]!;
+        var validAudience = config["Jwt:Audience"]!;
 
         // Gizli anahtarı byte dizisine çevir
         var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));

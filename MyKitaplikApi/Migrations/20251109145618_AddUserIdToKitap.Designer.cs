@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyKitaplikApi.Data;
 
@@ -10,9 +11,11 @@ using MyKitaplikApi.Data;
 namespace MyKitaplikApi.Migrations
 {
     [DbContext(typeof(KitaplikDbContext))]
-    partial class KitaplikDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251109145618_AddUserIdToKitap")]
+    partial class AddUserIdToKitap
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.10");

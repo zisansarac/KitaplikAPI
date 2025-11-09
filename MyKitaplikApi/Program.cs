@@ -1,4 +1,5 @@
 // MyKitaplikApi/Program.cs
+using Microsoft.OpenApi.Models;
 using MyKitaplikApi.Data;
 using MyKitaplikApi.Services;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +52,7 @@ builder.Services.AddAuthentication(options =>
     {
         // JWT Token'ın kimin tarafından oluşturulduğunu doğrula (bizim api miz olmalı)
         ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["Jwt:Audience"],
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
 
         // JWT Token'ın kimin için oluşturulduğunu doğrula (Frontend'imiz olmalı)
         ValidateAudience = true,
@@ -89,9 +92,38 @@ builder.Services.AddCors(options =>
 });
 
 // Standart Web API Ayarları
-builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    var scheme = new OpenApiSecurityScheme
+    {
+        Name = "Authentication",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Bearer {token}",
+
+    };
+    c.AddSecurityDefinition("Bearer", scheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer" // << EKLEME: Hangi şemayı referans ettiğini belirtiyoruz.
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
+builder.Services.AddControllers();
 
 // YENİ EKLEME 3: HTTP İstek Hattına (Pipeline) Güvenliği Dahil Etme
 
